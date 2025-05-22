@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Java Compiler Online</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>Online Java Compiler</h1>
+        <form action="/compile" method="post">
+            <div>
+                <label for="className">Class Name (e.g., Main):</label>
+                <input type="text" id="className" name="className" value="Main" required>
+            </div>
+            <div>
+                <label for="sourceCode">Source Code:</label>
+                <textarea id="sourceCode" name="sourceCode" required>public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}</textarea>
+            </div>
+            <div>
+                <button type="submit" class="btn">Compile and Run</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
