@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Compilation Result</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>Compilation Result</h1>
+
+        <h2>Compilation Status</h2>
+        <p th:text="${compilationStatus}"
+           th:classappend="${compilationStatus == 'SUCCESS'} ? 'status-message success-message' : (${compilationStatus == 'FAILURE'} ? 'status-message error-message' : 'status-message')">
+           <!-- Fallback text if compilationStatus is null or unexpected -->
+           [Status will appear here]
+        </p>
+
+        <div th:if="${compilationStatus == 'FAILURE' and diagnostics != null and !diagnostics.isEmpty()}">
+            <h2>Compiler Diagnostics</h2>
+            <pre th:text="${diagnostics}"></pre>
+        </div>
+        <div th:if="${compilationStatus == 'SUCCESS' and diagnostics != null and !diagnostics.isEmpty() and diagnostics != 'No compilation issues.'}">
+             <h2>Compiler Messages</h2> <!-- Could be warnings or other info -->
+             <pre th:text="${diagnostics}"></pre>
+        </div>
+         <div th:if="${compilationStatus == 'SUCCESS' and diagnostics == 'No compilation issues.'}">
+            <!-- Optionally show a success message for diagnostics -->
+             <p class="no-output">No compilation issues.</p>
+        </div>
+
+
+        <div th:if="${output != null and !output.isEmpty() and output != 'No output produced.'}">
+            <h2>Program Output</h2>
+            <pre th:text="${output}"></pre>
+        </div>
+        <div th:if="${compilationStatus == 'SUCCESS' and output == 'No output produced.'}">
+             <h2>Program Output</h2>
+             <p class="no-output">No output produced by the program.</p>
+        </div>
+        <div th:if="${compilationStatus == 'FAILURE' and (output == null or output.isEmpty() or output == 'No output produced.') and (diagnostics != null and !diagnostics.isEmpty())}">
+            <!-- If compilation failed and there's no specific output, but there are diagnostics, users might expect no output section or a specific message -->
+            <!-- This case is mostly covered by diagnostics being shown -->
+        </div>
+
+
+        <hr>
+        <a th:href="@{/}" class="link-button">Compile another file</a>
+    </div>
+</body>
+</html>
