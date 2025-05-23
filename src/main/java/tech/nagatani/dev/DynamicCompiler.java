@@ -14,7 +14,7 @@ import java.util.Comparator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.TimeUnit; // Added for timeout
-import java.nio.charset.StandardCharsets; // Added for UTF-8 stream reading
+// Removed: import java.nio.charset.StandardCharsets;
 
 // New imports for process management and WebSocket integration
 import tech.nagatani.dev.service.InteractiveProcessManager;
@@ -77,8 +77,8 @@ public class DynamicCompiler {
 
             JavaFileObject sourceFile = new StringSourceJavaObject(className, sourceCode); // Reverted to original sourceCode
             Iterable<? extends JavaFileObject> compilationUnits = Collections.singletonList(sourceFile);
-            // Added -encoding UTF-8 to compiler options
-            Iterable<String> options = Arrays.asList("-encoding", "UTF-8", "-d", tempDir.toString());
+            // Reverted -encoding UTF-8 from compiler options
+            Iterable<String> options = Arrays.asList("-d", tempDir.toString());
 
             StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnosticsCollector, null, null);
             JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnosticsCollector, options, null, compilationUnits);
@@ -127,9 +127,9 @@ public class DynamicCompiler {
         String sourceCode = compilationResult.getSourceCode(); // Get source code
 
         try {
+            // Reverted -Dfile.encoding=UTF-8 for child process
             ProcessBuilder processBuilder = new ProcessBuilder(
                 "java",
-                "-Dfile.encoding=UTF-8", // Added system property for UTF-8
                 "-cp",
                 tempDir.toString(),
                 className
@@ -161,10 +161,10 @@ public class DynamicCompiler {
             // Thread to read stdout - only proceed if process is alive or exited normally from timeout check
             // If process was destroyed, these threads will start, find streams closed, and exit.
             Thread outputThread = new Thread(() -> {
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) { // Reverted to default charset
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        System.out.println("Server Process STDOUT READ: " + line);
+                        // Removed: System.out.println("Server Process STDOUT READ: " + line);
                         webSocketHandler.sendMessageToSession(executionId, line);
                     }
                 } catch (IOException e) {
@@ -179,10 +179,10 @@ public class DynamicCompiler {
 
             // Thread to read stderr
             Thread errorThread = new Thread(() -> {
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) { // Reverted to default charset
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        System.out.println("Server Process STDERR READ: " + line);
+                        // Removed: System.out.println("Server Process STDERR READ: " + line);
                         webSocketHandler.sendMessageToSession(executionId, "ERROR: " + line);
                     }
                 } catch (IOException e) {

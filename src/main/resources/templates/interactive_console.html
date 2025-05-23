@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
     <title>Interactive Console</title>
     <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
     <style>
@@ -61,7 +60,7 @@
 
             socket.onmessage = function(event) {
                 const message = event.data;
-                console.log("Client WS RCV:", message); // Added log
+                // Removed: console.log("Client WS RCV:", message);
                 consoleOutput.textContent += message + '\n';
                 consoleOutput.scrollTop = consoleOutput.scrollHeight; // Auto-scroll
             };
@@ -90,7 +89,7 @@
             if (socket && socket.readyState === WebSocket.OPEN) {
                 const input = consoleInput.value;
                 if (input.trim() !== "") {
-                    console.log("Client WS SEND:", input); // Added log
+                    // Removed: console.log("Client WS SEND:", input);
                     socket.send(input);
                     consoleOutput.textContent += "> " + input + '\n'; // Echo input locally
                     consoleOutput.scrollTop = consoleOutput.scrollHeight;

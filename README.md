@@ -60,66 +60,39 @@ Executing arbitrary code received from users is a significant security risk. Thi
 2.  Navigate to the application in your browser (typically `http://localhost:8080/`).
 3.  Copy the content of `src/test/java/tech/nagatani/dev/testprograms/InteractiveTest.java` (shown below) into the source code input area.
     ```java
-    package tech.nagatani.dev.testprograms;
+    // package tech.nagatani.dev.testprograms; // Optional to include package in README example
 
     import java.util.Scanner;
 
     public class InteractiveTest {
         public static void main(String[] args) {
-            @SuppressWarnings("resource") // Suppress warning for System.in Scanner
+            @SuppressWarnings("resource")
             Scanner scanner = new Scanner(System.in);
-            System.out.println("SERVER_MSG: インタラクティブテストプログラムが開始されました。"); // "Interactive Test Program Started."
-            System.out.println("SERVER_MSG: お名前を入力してください:"); // "Please enter your name:"
-            String name = scanner.nextLine(); // Program will wait here for input
-            System.out.println("SERVER_MSG: こんにちは、" + name + "さん！"); // "Hello, [name]!"
-            System.out.println("SERVER_MSG: 何か日本語で入力してみてください:"); // "Please enter something in Japanese:"
-            String japaneseInput = scanner.nextLine();
-            System.out.println("SERVER_MSG: 入力された日本語: " + japaneseInput); // "Entered Japanese: [japaneseInput]"
-            System.out.println("SERVER_MSG: プログラム終了。"); // "Program finished."
+            System.out.println("SERVER_MSG: Interactive Test Program Started.");
+            System.out.println("SERVER_MSG: Please enter your name:");
+            String name = scanner.nextLine();
+            System.out.println("SERVER_MSG: Hello, " + name + "!");
+            System.out.println("SERVER_MSG: Program finished.");
         }
     }
     ```
 4.  Click "Compile and Run".
 5.  You should be taken to the interactive console page.
-6.  Expected initial output:
+6.  Expected output:
     ```
-    SERVER_MSG: インタラクティブテストプログラムが開始されました。
-    SERVER_MSG: お名前を入力してください:
+    SERVER_MSG: Interactive Test Program Started.
+    SERVER_MSG: Please enter your name:
     ```
-7.  In the input field, type a name (e.g., "Jules" or a Japanese name like "ジュール") and press Enter or click "Send".
-8.  Expected output after entering name (using "ジュール" as example):
+7.  In the input field at the bottom of the page, type your name (e.g., "Jules") and press Enter or click "Send".
+8.  Expected output (after your input and program response):
     ```
-    > ジュール
-    SERVER_MSG: こんにちは、ジュールさん！
-    SERVER_MSG: 何か日本語で入力してみてください:
-    ```
-    *(Note: The `> ジュール` part is an echo from the client-side JavaScript.)*
-9.  In the input field, type some Japanese text (e.g., "こんにちは世界") and press Enter or click "Send".
-10. Expected output after entering Japanese text:
-    ```
-    > こんにちは世界
-    SERVER_MSG: 入力された日本語: こんにちは世界
-    SERVER_MSG: プログラム終了。
+    > Jules 
+    SERVER_MSG: Hello, Jules!
+    SERVER_MSG: Program finished.
     Program finished with exit code: 0 
     ```
-    *(Note: The `> こんにちは世界` part is an echo from the client-side JavaScript, and the `Program finished with exit code: 0` is sent by the server upon process termination.)*
-11. The session should then indicate that the program has finished. This test verifies that multi-byte characters (like Japanese) are correctly handled in the interactive console.
-
-### Conceptual Outline for Automated Testing (Future Work)
-
-Automated testing for the interactive console feature would typically involve:
-
-1.  **Test Framework:** Use a framework like Selenium for browser automation to submit the code and navigate to the interactive console page.
-2.  **WebSocket Client:** Employ a Java WebSocket client (e.g., from a library like `org.java-websocket` or Spring's WebSocket client) to connect to the `/ws/execute?id=<executionId>` endpoint. The `executionId` would need to be scraped from the interactive console page after code submission or obtained through other means if the test directly triggers backend logic.
-3.  **Coordination:**
-    *   The Selenium test would submit the Java code.
-    *   Once the interactive console page loads, the test would extract the `executionId`.
-    *   The Java WebSocket client would connect using this `executionId`.
-4.  **Interaction & Assertions:**
-    *   The WebSocket client would wait for the initial "SERVER_MSG: Please enter your name:" message.
-    *   It would then send a test name (e.g., "TestUser") over the WebSocket.
-    *   It would then assert that it receives "SERVER_MSG: Hello, TestUser!" and "SERVER_MSG: Program finished." followed by the "Program finished with exit code: 0" message.
-5.  **Challenges:** Timing and synchronization between the browser actions (Selenium) and WebSocket interactions would be critical. Managing process lifecycles and ensuring cleanup after tests would also be important.
+    *(Note: The `> Jules` part is an echo from the client-side JavaScript, and the `Program finished with exit code: 0` is sent by the server upon process termination.)*
+9.  The session should then indicate that the program has finished, and the input field might become disabled.
 
 ## Future Development: Enhanced GUI Support
 
@@ -134,33 +107,3 @@ True interactive support for Java GUI applications in a web browser is a complex
 *   **Focus on Specific UI Components:** Instead of full desktop emulation, future work could focus on capturing and representing a limited set of common Swing components (like dialogs, buttons, text areas) as HTML elements, with interactions relayed back to the server. This would be a partial emulation.
 
 These approaches represent significant undertakings and would require substantial additional research, development, and infrastructure considerations.
-
-## Debugging Character Encoding Issues
-
-To help diagnose and troubleshoot potential character encoding issues, detailed logging has been added to both the server-side and client-side components of the interactive console. These logs provide a trace of the data as it flows from the client to the server, into the executed Java program, back from the program, and finally back to the client.
-
-### Important Note on Source File Encoding
-
-For the application to correctly handle Japanese and other multi-byte characters in your Java source code (e.g., in String literals or comments), please ensure that your `.java` files are **saved with UTF-8 encoding** in your text editor before submitting them through this tool.
-
-### Accessing the Logs
-
-*   **Server-Side Logs:**
-    Server-side logs are printed to the console where you launched the Spring Boot Java application. These log messages are typically prefixed with:
-    *   `Server WS RCV:` (when the server's WebSocket handler receives a message from the client)
-    *   `Server WS SEND to Process STDIN (...)` (showing the raw bytes and interpreted string being sent to the executed program's input)
-    *   `Server Process STDOUT READ:` (when the server reads a line from the executed program's standard output)
-    *   `Server Process STDERR READ:` (when the server reads a line from the executed program's standard error)
-    *   `Server WS SEND to Client (...)` (when the server's WebSocket handler sends a message back to the client)
-
-*   **Client-Side Logs:**
-    Client-side logs are displayed in your web browser's Developer Console. To open the Developer Console:
-    *   In most browsers (Chrome, Firefox, Edge), press `F12`.
-    *   Alternatively, you can usually right-click on the page and select "Inspect" or "Inspect Element", then navigate to the "Console" tab.
-    *   These log messages are prefixed with:
-        *   `Client WS SEND:` (when the client sends a message to the server via WebSocket)
-        *   `Client WS RCV:` (when the client receives a message from the server via WebSocket)
-
-### Reporting Issues
-
-If you continue to experience character encoding problems, please perform the test using Japanese characters as described in the "Testing Interactive Console" section. Then, copy and paste the relevant sections from BOTH the server-side console output AND the browser's Developer Console output when reporting the issue. This will provide valuable information for further diagnosis.
