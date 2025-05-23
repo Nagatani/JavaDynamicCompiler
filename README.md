@@ -36,9 +36,8 @@ Follow these steps:
     Open your web browser and navigate to `http://localhost:8080/`.
 
 ## How to Use
-1.  Once the application is running, you will see a form with two input fields:
-    *   **Class Name**: Enter the name of the public class in your source code (e.g., `MyProgram`). This name should match the main class you want to execute. Do not include the `.java` extension.
-    *   **Source Code**: Paste or type your Java source code into the text area. Ensure your code includes a `public static void main(String[] args)` method if you want it to be executable.
+1.  Once the application is running, you will see a form with one main input field:
+    *   **Source Code**: Paste or type your Java source code into the text area. Ensure your code includes a `public class YourClassName {...}` declaration. The application will automatically detect this class name. Your code should include a `public static void main(String[] args)` method within this public class if you want it to be executable.
 
 2.  Click the **"Compile and Run"** button.
 
