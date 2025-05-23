@@ -11,7 +11,9 @@ import tech.nagatani.dev.service.InteractiveProcessManager;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter; // Added import
 import java.net.URI;
+import java.nio.charset.StandardCharsets; // Added import
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -74,15 +76,18 @@ public class ExecutionWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        OutputStream stdin = processManager.getProcessStdin(executionId);
-        if (stdin != null) {
+        OutputStream processStdinStream = processManager.getProcessStdin(executionId);
+        if (processStdinStream != null) {
             try {
-                stdin.write((message.getPayload() + "\n").getBytes());
-                stdin.flush();
+                // It's important NOT to close this writer, as it would close the underlying stdin stream.
+                // We are adapting the stream, not managing its lifecycle here.
+                OutputStreamWriter writer = new OutputStreamWriter(processStdinStream, StandardCharsets.UTF_8);
+                writer.write(message.getPayload() + "\n");
+                writer.flush(); // Crucial for sending data immediately
             } catch (IOException e) {
                 System.err.println("Error writing to process stdin for executionId " + executionId + ": " + e.getMessage());
-                session.sendMessage(new TextMessage("ERROR: Could not send input to the running program. It might have terminated."));
-                // Consider closing the process/session if stdin is broken
+                // Optionally, send an error message back to the client via WebSocket
+                sendMessageToSession(executionId, "ERROR: Could not send input to the program.");
             }
         } else {
             System.err.println("Process stdin not found for executionId: " + executionId + ". Input ignored: " + message.getPayload());

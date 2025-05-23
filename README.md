@@ -58,7 +58,7 @@ Executing arbitrary code received from users is a significant security risk. Thi
 
 1.  Run the JavaCompiler web application.
 2.  Navigate to the application in your browser (typically `http://localhost:8080/`).
-3.  Copy the content of `src/test/java/tech/nagatani/dev/testprograms/InteractiveTest.java` into the source code input area.
+3.  Copy the content of `src/test/java/tech/nagatani/dev/testprograms/InteractiveTest.java` (shown below) into the source code input area.
     ```java
     package tech.nagatani.dev.testprograms;
 
@@ -68,31 +68,42 @@ Executing arbitrary code received from users is a significant security risk. Thi
         public static void main(String[] args) {
             @SuppressWarnings("resource") // Suppress warning for System.in Scanner
             Scanner scanner = new Scanner(System.in);
-            System.out.println("SERVER_MSG: Interactive Test Program Started.");
-            System.out.println("SERVER_MSG: Please enter your name:");
+            System.out.println("SERVER_MSG: インタラクティブテストプログラムが開始されました。"); // "Interactive Test Program Started."
+            System.out.println("SERVER_MSG: お名前を入力してください:"); // "Please enter your name:"
             String name = scanner.nextLine(); // Program will wait here for input
-            System.out.println("SERVER_MSG: Hello, " + name + "!");
-            System.out.println("SERVER_MSG: Program finished.");
+            System.out.println("SERVER_MSG: こんにちは、" + name + "さん！"); // "Hello, [name]!"
+            System.out.println("SERVER_MSG: 何か日本語で入力してみてください:"); // "Please enter something in Japanese:"
+            String japaneseInput = scanner.nextLine();
+            System.out.println("SERVER_MSG: 入力された日本語: " + japaneseInput); // "Entered Japanese: [japaneseInput]"
+            System.out.println("SERVER_MSG: プログラム終了。"); // "Program finished."
         }
     }
     ```
 4.  Click "Compile and Run".
 5.  You should be taken to the interactive console page.
-6.  Expected initial output in the console area:
+6.  Expected initial output:
     ```
-    SERVER_MSG: Interactive Test Program Started.
-    SERVER_MSG: Please enter your name:
+    SERVER_MSG: インタラクティブテストプログラムが開始されました。
+    SERVER_MSG: お名前を入力してください:
     ```
-7.  In the input field at the bottom of the page, type your name (e.g., "Jules") and press Enter or click "Send".
-8.  Expected output (after your input and program response):
+7.  In the input field, type a name (e.g., "Jules" or a Japanese name like "ジュール") and press Enter or click "Send".
+8.  Expected output after entering name (using "ジュール" as example):
     ```
-    > Jules 
-    SERVER_MSG: Hello, Jules!
-    SERVER_MSG: Program finished.
+    > ジュール
+    SERVER_MSG: こんにちは、ジュールさん！
+    SERVER_MSG: 何か日本語で入力してみてください:
+    ```
+    *(Note: The `> ジュール` part is an echo from the client-side JavaScript.)*
+9.  In the input field, type some Japanese text (e.g., "こんにちは世界") and press Enter or click "Send".
+10. Expected output after entering Japanese text:
+    ```
+    > こんにちは世界
+    SERVER_MSG: 入力された日本語: こんにちは世界
+    SERVER_MSG: プログラム終了。
     Program finished with exit code: 0 
     ```
-    *(Note: The `> Jules` part is an echo from the client-side JavaScript, and the `Program finished with exit code: 0` is sent by the server upon process termination.)*
-9.  The session should then indicate that the program has finished, and the input field might become disabled.
+    *(Note: The `> こんにちは世界` part is an echo from the client-side JavaScript, and the `Program finished with exit code: 0` is sent by the server upon process termination.)*
+11. The session should then indicate that the program has finished. This test verifies that multi-byte characters (like Japanese) are correctly handled in the interactive console.
 
 ### Conceptual Outline for Automated Testing (Future Work)
 
