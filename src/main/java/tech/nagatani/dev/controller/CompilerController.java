@@ -13,8 +13,7 @@ import tech.nagatani.dev.service.InteractiveProcessManager;
 import tech.nagatani.dev.websocket.ExecutionWebSocketHandler;
 
 import java.util.UUID;
-import java.util.Arrays; // Added for logging
-import java.nio.charset.StandardCharsets; // Added for logging
+// Removed java.util.Arrays and java.nio.charset.StandardCharsets as they are no longer needed
 
 @Controller
 public class CompilerController {
@@ -41,17 +40,7 @@ public class CompilerController {
     @PostMapping("/compile")
     public String compile(@RequestParam("sourceCode") String sourceCode,
                           Model model) {
-        System.out.println("CompilerController RCV sourceCode (first 100 chars): " + (sourceCode != null && sourceCode.length() > 100 ? sourceCode.substring(0, 100) + "..." : sourceCode));
-        if (sourceCode != null) {
-            try {
-                byte[] utf8Bytes = sourceCode.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                System.out.println("CompilerController RCV sourceCode (UTF-8 bytes from getBytes()): " + java.util.Arrays.toString(utf8Bytes));
-                // Optional: Log the string reconstructed from these UTF-8 bytes, for double checking
-                // System.out.println("CompilerController RCV sourceCode (String from UTF-8 bytes): " + new String(utf8Bytes, java.nio.charset.StandardCharsets.UTF_8));
-            } catch (Exception e) {
-                System.err.println("CompilerController: Error getting UTF-8 bytes from sourceCode: " + e.getMessage());
-            }
-        }
+        // Logging statements removed
 
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
             model.addAttribute("compilationStatus", "FAILURE");
