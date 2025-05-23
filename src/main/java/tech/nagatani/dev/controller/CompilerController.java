@@ -23,13 +23,9 @@ public class CompilerController {
     }
 
     @PostMapping("/compile")
-    public String compile(@RequestParam("className") String className,
-                          @RequestParam("sourceCode") String sourceCode,
+    public String compile(@RequestParam("sourceCode") String sourceCode,
                           Model model) {
         // Basic input validation
-        if (className == null || className.trim().isEmpty()) {
-            className = "Main"; // Default class name if empty
-        }
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
             // Handle empty source code - perhaps add a default or show an error
             model.addAttribute("compilationStatus", "ERROR");
@@ -38,10 +34,9 @@ public class CompilerController {
             return "result";
         }
 
-        System.out.println("Received className: " + className);
         // System.out.println("Received sourceCode: \n" + sourceCode); // Potentially too verbose for logs
 
-        Result result = dynamicCompiler.compile(sourceCode, className);
+        Result result = dynamicCompiler.compile(sourceCode);
 
         model.addAttribute("compilationStatus", result.compileSuccess() ? "SUCCESS" : "FAILURE");
         

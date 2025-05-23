@@ -8,11 +8,18 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Comparator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DynamicCompiler {
     private static final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    private static final Pattern PUBLIC_CLASS_NAME_PATTERN = Pattern.compile("public\\s+(?:final\\s+)?class\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*");
+
+    // Custom JavaFileObject to hold source code in a String
+    static class StringSourceJavaObject extends SimpleJavaFileObject {
 
     // Custom JavaFileObject to hold source code in a String
     static class StringSourceJavaObject extends SimpleJavaFileObject {
@@ -31,25 +38,42 @@ public class DynamicCompiler {
 
     public DynamicCompiler() {
         if (compiler == null) {
-            // This should ideally throw an exception or be handled more gracefully
             System.err.println("Compiler not found. This application cannot function.");
             throw new IllegalStateException("Java Compiler not available. Please ensure a JDK is installed and configured correctly.");
         }
     }
 
-    public Result compile(String sourceCode, String className) {
+    private String extractPublicClassName(String sourceCode) {
+        if (sourceCode == null || sourceCode.trim().isEmpty()) {
+            return null;
+        }
+        Matcher matcher = PUBLIC_CLASS_NAME_PATTERN.matcher(sourceCode);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    public Result compile(String sourceCode) {
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         List<String> diagnosticMessages = new ArrayList<>();
         List<String> executeMessages = new ArrayList<>();
         boolean compileSuccess = false;
         Path tempDir = null;
 
+        String className = extractPublicClassName(sourceCode);
+
+        if (className == null || className.trim().isEmpty()) {
+            diagnosticMessages.add("ERROR: Could not find a public class (e.g., 'public class MyClass {...}') or class name is invalid in the provided source code.");
+            return new Result(false, diagnosticMessages, Collections.emptyList());
+        }
+
         try {
             // Create a temporary directory for compiled class files
             tempDir = Files.createTempDirectory("java-compile-");
 
             JavaFileObject sourceFile = new StringSourceJavaObject(className, sourceCode);
-            Iterable<? extends JavaFileObject> compilationUnits = Arrays.asList(sourceFile);
+            Iterable<? extends JavaFileObject> compilationUnits = Collections.singletonList(sourceFile);
             
             // Options: -d specifies the output directory for class files
             Iterable<String> options = Arrays.asList("-d", tempDir.toString());
@@ -137,7 +161,8 @@ public class DynamicCompiler {
                         "        if(args.length > 0) System.out.println(\"Args: \" + args[0]);\n" +
                         "    }\n" +
                         "}";
-        Result ret = dc.compile(source, "Test");
+        // Result ret = dc.compile(source, "Test"); // Old call
+        Result ret = dc.compile(source); // New call
 
         System.out.println("Compilation Success: " + ret.compileSuccess());
         System.out.println("Compiler Diagnostics:");

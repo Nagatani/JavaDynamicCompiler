@@ -9,11 +9,10 @@
         <h1>Online Java Compiler</h1>
         <form action="/compile" method="post">
             <div>
-                <label for="className">Class Name (e.g., Main):</label>
-                <input type="text" id="className" name="className" value="Main" required>
-            </div>
-            <div>
                 <label for="sourceCode">Source Code:</label>
+                <small style="display: block; margin-bottom: 10px; color: #555;">
+                    The public class name (e.g., <code>public class MyClass {...}</code>) will be automatically detected.
+                </small>
                 <textarea id="sourceCode" name="sourceCode" required>public class Main {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
