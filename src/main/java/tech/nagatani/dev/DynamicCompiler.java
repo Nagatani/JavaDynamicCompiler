@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.TimeUnit; // Added for timeout
+import java.nio.charset.StandardCharsets; // Added for UTF-8 stream reading
 
 // New imports for process management and WebSocket integration
 import tech.nagatani.dev.service.InteractiveProcessManager;
@@ -152,7 +153,7 @@ public class DynamicCompiler {
             // Thread to read stdout - only proceed if process is alive or exited normally from timeout check
             // If process was destroyed, these threads will start, find streams closed, and exit.
             Thread outputThread = new Thread(() -> {
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         webSocketHandler.sendMessageToSession(executionId, line);
@@ -169,7 +170,7 @@ public class DynamicCompiler {
 
             // Thread to read stderr
             Thread errorThread = new Thread(() -> {
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         webSocketHandler.sendMessageToSession(executionId, "ERROR: " + line);
