@@ -20,9 +20,6 @@ public class DynamicCompiler {
 
     // Custom JavaFileObject to hold source code in a String
     static class StringSourceJavaObject extends SimpleJavaFileObject {
-
-    // Custom JavaFileObject to hold source code in a String
-    static class StringSourceJavaObject extends SimpleJavaFileObject {
         private final String sourceCode;
 
         protected StringSourceJavaObject(String className, String sourceCode) {
