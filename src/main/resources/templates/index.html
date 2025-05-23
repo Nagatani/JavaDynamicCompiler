@@ -7,7 +7,11 @@
 <body>
     <div class="container">
         <h1>Online Java Compiler</h1>
-        <form action="/compile" method="post">
+        <form action="/compile" method="post" enctype="multipart/form-data">
+            <div>
+                <label for="javaFileInput">Or Upload a .java File:</label>
+                <input type="file" id="javaFileInput" name="javaFile" accept=".java" style="margin-bottom: 10px;" />
+            </div>
             <div>
                 <label for="sourceCode">Source Code:</label>
                 <small style="display: block; margin-bottom: 10px; color: #555;">
@@ -24,5 +28,41 @@
             </div>
         </form>
     </div>
+    <script th:inline="javascript">
+    /*<![CDATA[*/
+    document.addEventListener('DOMContentLoaded', function () {
+        const javaFileInput = document.getElementById('javaFileInput');
+        const sourceCodeTextarea = document.getElementById('sourceCode');
+
+        if (javaFileInput && sourceCodeTextarea) {
+            javaFileInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    // Basic check for .java extension (client-side)
+                    if (!file.name.toLowerCase().endsWith('.java')) {
+                        alert('Please select a .java file.');
+                        event.target.value = null; // Clear the input
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        sourceCodeTextarea.value = e.target.result;
+                    };
+                    reader.onerror = function(e) {
+                        console.error("Error reading file:", e);
+                        alert('Error reading file. Please ensure it is a valid text file.');
+                    };
+                    reader.readAsText(file);
+                    // Clear the file input value so selecting the same file again triggers 'change'
+                    event.target.value = null; 
+                }
+            });
+        } else {
+            console.error('File input or source code textarea not found.');
+        }
+    });
+    /*]]>*/
+    </script>
 </body>
 </html>
