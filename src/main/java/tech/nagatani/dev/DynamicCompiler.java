@@ -20,9 +20,6 @@ public class DynamicCompiler {
 
     // Custom JavaFileObject to hold source code in a String
     static class StringSourceJavaObject extends SimpleJavaFileObject {
-
-    // Custom JavaFileObject to hold source code in a String
-    static class StringSourceJavaObject extends SimpleJavaFileObject {
         private final String sourceCode;
 
         protected StringSourceJavaObject(String className, String sourceCode) {
@@ -148,27 +145,5 @@ public class DynamicCompiler {
             }
         }
         return new Result(compileSuccess, diagnosticMessages, executeMessages);
-    }
-
-    public static void main(String[] args) {
-        // Example usage (optional, can be removed or adapted)
-        /*
-        DynamicCompiler dc = new DynamicCompiler();
-        String source = "public class Test {\n" +
-                        "    public static void main(String[] args) {\n" +
-                        "        System.out.println(\"Hello from dynamically compiled code!\");\n" +
-                        "        System.err.println(\"This is an error message.\");\n" +
-                        "        if(args.length > 0) System.out.println(\"Args: \" + args[0]);\n" +
-                        "    }\n" +
-                        "}";
-        // Result ret = dc.compile(source, "Test"); // Old call
-        Result ret = dc.compile(source); // New call
-
-        System.out.println("Compilation Success: " + ret.compileSuccess());
-        System.out.println("Compiler Diagnostics:");
-        ret.compileOutput().forEach(System.out::println);
-        System.out.println("\nExecution Output:");
-        ret.output().forEach(System.out::println);
-        */
     }
 }
