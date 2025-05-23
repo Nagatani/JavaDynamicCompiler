@@ -139,11 +139,20 @@ These approaches represent significant undertakings and would require substantia
 
 To help diagnose and troubleshoot potential character encoding issues, detailed logging has been added to both the server-side and client-side components of the interactive console. These logs provide a trace of the data as it flows from the client to the server, into the executed Java program, back from the program, and finally back to the client.
 
-### Important Note on Source File Encoding
+### Crucial: Ensure Your `.java` File is Saved as UTF-8
 
-For the application to correctly handle Japanese and other multi-byte characters in your Java source code (e.g., in String literals or comments), please ensure that your `.java` files are **saved with UTF-8 encoding** in your text editor before submitting them through this tool.
+For this application to correctly process Japanese and other multi-byte characters within your Java source code (e.g., in String literals or comments), it is **absolutely essential** that the `.java` file itself is **saved with UTF-8 encoding on your computer's disk *before* you copy its content into this tool.**
 
-While the compiler is instructed to interpret source files as UTF-8, this works most reliably if the file's actual byte encoding is indeed UTF-8.
+**Why this is critical:**
+*   If you write your code in a text editor and the file is saved with a different encoding (e.g., Shift_JIS, EUC-JP, or sometimes even system defaults like Windows-1252/MS932), the actual bytes representing your characters will be different from their UTF-8 equivalents.
+*   When you copy this text and paste it into the browser, or if you were to upload such a file, those non-UTF-8 bytes might be misinterpreted at various stages (browser, HTTP transmission, or even by our server if configurations are not perfectly aligned for all edge cases).
+*   While this application instructs its Java compiler to *interpret* the incoming source code as UTF-8, and sets HTTP request/response encodings to UTF-8, these measures work most reliably and consistently if the **original data stream begins as valid UTF-8.**
+
+**Action Required:**
+*   Please explicitly check your text editor's settings when saving your `.java` file. Most modern editors (like VS Code, IntelliJ IDEA, Sublime Text, Notepad++, etc.) allow you to specify the file encoding. **Choose "UTF-8" or "UTF-8 with BOM".** (UTF-8 without BOM is generally preferred).
+*   If you are unsure, try creating a new file, setting its encoding to UTF-8 from the start, pasting your code, and then saving it.
+
+Providing source code that is already correctly encoded in UTF-8 is the most fundamental step to avoiding character display issues.
 
 ### Accessing the Logs
 
