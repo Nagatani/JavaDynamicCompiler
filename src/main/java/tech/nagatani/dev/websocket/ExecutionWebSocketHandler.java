@@ -11,122 +11,168 @@ import tech.nagatani.dev.service.InteractiveProcessManager;
 
 import java.io.IOException;
 import java.io.OutputStream;
-// Removed: import java.io.OutputStreamWriter;
+// import java.io.OutputStreamWriter; // 前のステップで削除された
 import java.net.URI;
-// Removed: import java.nio.charset.StandardCharsets;
-// Removed: import java.util.Arrays;
+// import java.nio.charset.StandardCharsets; // 前のステップで削除された
+// import java.util.Arrays; // 前のステップで削除された
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 対話的なコード実行のためのWebSocket接続を管理するハンドラクラス。
+ * Springコンポーネントとしてマークされています。
+ */
 @Component
 public class ExecutionWebSocketHandler extends TextWebSocketHandler {
 
+    // executionIdをキーとしてアクティブなWebSocketセッションを保持するマップ
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
-    private final InteractiveProcessManager processManager;
-    private final DynamicCompiler dynamicCompiler;
+    private final InteractiveProcessManager processManager; // プロセス管理サービス
+    private final DynamicCompiler dynamicCompiler; // 動的コンパイルサービス
 
+    /**
+     * 必要なサービスを注入してExecutionWebSocketHandlerを構築します。
+     * @param processManager プロセス管理サービス
+     * @param dynamicCompiler 動的コンパイルサービス
+     */
     public ExecutionWebSocketHandler(InteractiveProcessManager processManager, DynamicCompiler dynamicCompiler) {
         this.processManager = processManager;
         this.dynamicCompiler = dynamicCompiler;
     }
 
+    /**
+     * 新しいWebSocket接続が確立された後に呼び出されます。
+     * URIからexecutionIdを抽出し、セッションを登録し、関連するJavaプロセスの開始を試みます。
+     * @param session 新しく確立されたWebSocketセッション
+     * @throws Exception エラーが発生した場合
+     */
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         URI uri = session.getUri();
-        String query = uri.getQuery(); // Should be "id=<executionId>"
+        String query = uri.getQuery(); // クエリは "id=<executionId>" であるべき
         String executionId = null;
+        // クエリからexecutionIdを抽出
         if (query != null && query.startsWith("id=")) {
             executionId = query.substring(3);
         }
 
+        // executionIdがなければエラー処理
         if (executionId == null || executionId.trim().isEmpty()) {
-            System.err.println("ExecutionId is missing in WebSocket URI: " + uri);
-            session.sendMessage(new TextMessage("ERROR: ExecutionId is required."));
-            session.close(CloseStatus.BAD_DATA.withReason("ExecutionId missing"));
+            System.err.println("WebSocket URIにExecutionIdがありません: " + uri);
+            session.sendMessage(new TextMessage("エラー: ExecutionIdが必要です。"));
+            session.close(CloseStatus.BAD_DATA.withReason("ExecutionIdが見つかりません"));
             return;
         }
         
+        // セッション属性にexecutionIdを保存し、セッションをマップに登録
         session.getAttributes().put("executionId", executionId);
         sessions.put(executionId, session);
-        System.out.println("WebSocket connection established for executionId: " + executionId + " (Session: " + session.getId() + ")");
+        System.out.println("WebSocket接続確立 (executionId: " + executionId + ", Session: " + session.getId() + ")");
 
+        // 関連するコンパイル結果を取得
         CompilationResult compilationResult = processManager.getCompilationResult(executionId);
         if (compilationResult == null) {
-            System.err.println("No compilation result found for executionId: " + executionId);
-            session.sendMessage(new TextMessage("ERROR: No compilation data found for this execution. It might have expired or failed."));
-            session.close(CloseStatus.POLICY_VIOLATION.withReason("No compilation data"));
+            System.err.println("executionId: " + executionId + " のコンパイル結果が見つかりません。");
+            session.sendMessage(new TextMessage("エラー: この実行のためのコンパイルデータが見つかりません。期限切れか失敗した可能性があります。"));
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("コンパイルデータなし"));
             return;
         }
 
+        // コンパイルが成功していればプロセスを開始
         if (compilationResult.isSuccess()) {
             dynamicCompiler.startProcess(compilationResult, executionId, processManager, this);
         } else {
-            session.sendMessage(new TextMessage("ERROR: Compilation was not successful. Cannot start process."));
-            // Optionally, send diagnostics if available and not already sent via HTTP response
+            session.sendMessage(new TextMessage("エラー: コンパイルが成功しなかったため、プロセスを開始できません。"));
+            // オプション: HTTPレスポンス経由でまだ送信されていない場合、診断情報を送信
             // compilationResult.getDiagnostics().forEach(diag -> { try { session.sendMessage(new TextMessage(diag)); } catch (IOException e) {} });
-            session.close(CloseStatus.POLICY_VIOLATION.withReason("Compilation failed"));
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("コンパイル失敗"));
         }
     }
 
+    /**
+     * クライアントからテキストメッセージを受信したときに呼び出されます。
+     * メッセージペイロードを取得し、対応する実行中のJavaプロセスの標準入力に転送します。
+     * @param session メッセージを送信したWebSocketセッション
+     * @param message 受信したテキストメッセージ
+     * @throws IOException I/Oエラーが発生した場合
+     */
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
-        // Removed: System.out.println("Server WS RCV: " + message.getPayload());
+        // System.out.println("サーバーWS受信: " + message.getPayload()); // ログは前のステップで削除
 
         String executionId = (String) session.getAttributes().get("executionId");
+        // executionIdがセッション属性になければエラー
         if (executionId == null) {
-            System.err.println("executionId missing in session attributes during handleTextMessage for session: " + session.getId());
-            session.sendMessage(new TextMessage("ERROR: Session context lost. Cannot process input."));
+            System.err.println("セッション " + session.getId() + " のhandleTextMessage中にexecutionIdがセッション属性に見つかりません。");
+            session.sendMessage(new TextMessage("エラー: セッションコンテキストが失われました。入力を処理できません。"));
             return;
         }
 
+        // 対応するプロセスの標準入力を取得
         OutputStream processStdinStream = processManager.getProcessStdin(executionId);
         if (processStdinStream != null) {
             try {
-                String payload = message.getPayload();
-                // Removed logging of UTF-8 bytes and interpreted string
+                String payload = message.getPayload(); // クライアントからの入力文字列
+                // UTF-8バイトとしてのログや解釈された文字列のログは前のステップで削除
                 
-                // Reverted to writing bytes using platform default encoding
+                // プラットフォームのデフォルトエンコーディングを使用してバイトを書き込むように戻された
                 processStdinStream.write((payload + "\n").getBytes());
-                processStdinStream.flush();
+                processStdinStream.flush(); // データを即座に送信するために重要
             } catch (IOException e) {
-                System.err.println("Error writing to process stdin for executionId " + executionId + ": " + e.getMessage());
-                // Optionally, send an error message back to the client via WebSocket
-                sendMessageToSession(executionId, "ERROR: Could not send input to the program.");
+                System.err.println("実行ID " + executionId + " のプロセス標準入力への書き込みエラー: " + e.getMessage());
+                // オプション: エラーメッセージをクライアントにWebSocket経由で送信
+                sendMessageToSession(executionId, "エラー: 実行中のプログラムに入力を送信できませんでした。");
             }
         } else {
-            System.err.println("Process stdin not found for executionId: " + executionId + ". Input ignored: " + message.getPayload());
-            session.sendMessage(new TextMessage("ERROR: Program is not running or not accepting input."));
+            System.err.println("実行ID " + executionId + " のプロセス標準入力が見つかりません。入力は無視されました: " + message.getPayload());
+            session.sendMessage(new TextMessage("エラー: プログラムが実行されていないか、入力を受け付けていません。"));
         }
     }
 
+    /**
+     * WebSocket接続が閉じた後に呼び出されます。
+     * セッションを削除し、関連するJavaプロセス（実行中の場合）のクリーンアップを開始します。
+     * @param session 閉じたWebSocketセッション
+     * @param status 接続が閉じた理由を示すクローズステータス
+     * @throws Exception エラーが発生した場合
+     */
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         String executionId = (String) session.getAttributes().get("executionId");
         if (executionId != null) {
+            // セッションマップから削除
             sessions.remove(executionId);
-            System.out.println("WebSocket connection closed for executionId: " + executionId + " (Session: " + session.getId() + ") with status " + status);
+            System.out.println("WebSocket接続クローズ (executionId: " + executionId + ", Session: " + session.getId() + ") ステータス: " + status);
+            // 関連プロセスのクリーンアップを指示
             processManager.cleanupProcess(executionId);
-            // Also ensure the temp directory for this executionId is cleaned up
-            CompilationResult cr = processManager.getCompilationResult(executionId); // Might be null if already removed
+            
+            // この実行IDの一時ディレクトリもクリーンアップされていることを確認
+            CompilationResult cr = processManager.getCompilationResult(executionId); // 既に削除されている場合はnullの可能性あり
             if (cr != null && cr.getCompiledCodePath() != null) {
                 dynamicCompiler.deleteTempDirectory(cr.getCompiledCodePath());
             } else {
-                 // If CR was removed from processManager upon process start, we need another way to get path
-                 // This is a bit tricky. DynamicCompiler.startProcess stores the path in CompilationResult.
-                 // If cleanupProcess also cleans the temp dir, this might be redundant or cause issues.
-                 // For now, let's assume cleanupProcess in InteractiveProcessManager should handle temp dir deletion.
-                 // The 'deleteTempDirectory' call here might be removed if IPM handles it.
-                 // Let's refine IPM.cleanupProcess to include deleting the temp folder.
+                 // プロセス開始時にCRがprocessManagerから削除された場合、パスを取得する別の方法が必要
+                 // これは少しトリッキーです。DynamicCompiler.startProcessはパスをCompilationResultに保存します。
+                 // cleanupProcessも一時ディレクトリを削除する場合、これは冗長であるか問題を引き起こす可能性があります。
+                 // 今のところ、InteractiveProcessManagerのcleanupProcessが一時フォルダの削除を処理すると仮定します。
+                 // ここの 'deleteTempDirectory' 呼び出しは、IPMがそれを処理する場合、削除される可能性があります。
+                 // IPM.cleanupProcessを改良して一時フォルダの削除を含めるようにしましょう。
             }
         } else {
-            System.out.println("WebSocket connection closed for session: " + session.getId() + " (no executionId found) with status " + status);
+            System.out.println("WebSocket接続クローズ (Session: " + session.getId() + ", executionId見つからず) ステータス: " + status);
         }
     }
     
+    /**
+     * WebSocketトランスポートエラーが発生したときに呼び出されます。
+     * @param session エラーが発生したセッション
+     * @param exception 発生した例外
+     * @throws Exception エラーを処理する場合
+     */
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
-        System.err.println("WebSocket transport error for session " + session.getId() + ": " + exception.getMessage());
-        // Consider also calling afterConnectionClosed logic here if appropriate
+        System.err.println("WebSocketトランスポートエラー (Session " + session.getId() + "): " + exception.getMessage());
+        // 適切であれば、ここでafterConnectionClosedロジックを呼び出すことも検討
         // String executionId = (String) session.getAttributes().get("executionId");
         // if (executionId != null) {
         //     processManager.cleanupProcess(executionId);
@@ -135,20 +181,29 @@ public class ExecutionWebSocketHandler extends TextWebSocketHandler {
     }
 
 
-    // Method to send message to a specific session (will be called by the process output readers)
+    /**
+     * 特定のクライアントセッションにメッセージを送信します。
+     * このメソッドは通常、実行中のJavaプロセスからの出力をクライアントに中継するために使用されます。
+     * @param executionId メッセージの送信先となるクライアントセッションを識別する実行ID
+     * @param message 送信するメッセージ文字列
+     */
     public void sendMessageToSession(String executionId, String message) {
-        // Removed: System.out.println("Server WS SEND to Client (" + executionId + "): " + message);
+        // System.out.println("サーバーWS送信クライアント (" + executionId + "): " + message); // ログは前のステップで削除
+
+        // executionIdに対応するセッションを取得
         WebSocketSession session = sessions.get(executionId);
+        // セッションが存在し、開いている場合のみメッセージを送信
         if (session != null && session.isOpen()) {
             try {
-                // Ensure messages are sent as whole text messages, not fragments if possible
+                // メッセージをテキストメッセージとして送信
+                // 可能であれば、メッセージが断片化されずに完全なテキストメッセージとして送信されるようにする
                 session.sendMessage(new TextMessage(message));
             } catch (IOException e) {
-                System.err.println("Error sending message to session " + executionId + ": " + e.getMessage());
-                // If sending fails, the session might be broken. Consider cleanup.
+                System.err.println("セッション " + executionId + " へのメッセージ送信エラー: " + e.getMessage());
+                // 送信に失敗した場合、セッションが壊れている可能性があります。クリーンアップを検討してください。
             }
         } else {
-            // System.out.println("Session " + executionId + " not found or not open. Message not sent: " + message);
+            // System.out.println("セッション " + executionId + " が見つからないか開いていません。メッセージは送信されませんでした: " + message);
         }
     }
 }
