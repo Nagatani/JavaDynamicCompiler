@@ -104,7 +104,7 @@ public class DynamicCompiler {
                             executeMessages.add(line);
                         }
                     }
-
+                  
                     // Capture stderr
                     try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                         String line;

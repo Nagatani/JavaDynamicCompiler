@@ -40,6 +40,7 @@ Follow these steps:
     *   **Or Upload a .java File**: You can click the "Choose File" button (or similar, depending on browser wording for the file input) to select a `.java` file from your computer. The content of this file will automatically populate the "Source Code" text area below.
     *   **Source Code**: Paste or type your Java source code into the text area. If you uploaded a file, its content will appear here. Ensure your code includes a `public class YourClassName {...}` declaration. The application will automatically detect this class name. Your code should include a `public static void main(String[] args)` method within this public class if you want it to be executable.
 
+
 2.  Click the **"Compile and Run"** button.
 
 3.  The application will process your code and display the results:
