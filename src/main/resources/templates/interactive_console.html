@@ -61,6 +61,7 @@
 
             socket.onmessage = function(event) {
                 const message = event.data;
+                console.log("Client WS RCV:", message); // Added log
                 consoleOutput.textContent += message + '\n';
                 consoleOutput.scrollTop = consoleOutput.scrollHeight; // Auto-scroll
             };
@@ -89,6 +90,7 @@
             if (socket && socket.readyState === WebSocket.OPEN) {
                 const input = consoleInput.value;
                 if (input.trim() !== "") {
+                    console.log("Client WS SEND:", input); // Added log
                     socket.send(input);
                     consoleOutput.textContent += "> " + input + '\n'; // Echo input locally
                     consoleOutput.scrollTop = consoleOutput.scrollHeight;

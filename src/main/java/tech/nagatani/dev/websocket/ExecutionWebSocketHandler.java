@@ -14,6 +14,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter; // Added import
 import java.net.URI;
 import java.nio.charset.StandardCharsets; // Added import
+import java.util.Arrays; // Added import for Arrays.toString
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -69,6 +70,8 @@ public class ExecutionWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
+        System.out.println("Server WS RCV: " + message.getPayload()); // Logging incoming message
+
         String executionId = (String) session.getAttributes().get("executionId");
         if (executionId == null) {
             System.err.println("executionId missing in session attributes during handleTextMessage for session: " + session.getId());
@@ -79,10 +82,15 @@ public class ExecutionWebSocketHandler extends TextWebSocketHandler {
         OutputStream processStdinStream = processManager.getProcessStdin(executionId);
         if (processStdinStream != null) {
             try {
+                String payload = message.getPayload();
+                byte[] utf8Bytes = payload.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                System.out.println("Server WS SEND to Process STDIN (UTF-8 bytes as java.util.Arrays.toString): " + java.util.Arrays.toString(utf8Bytes));
+                System.out.println("Server WS SEND to Process STDIN (String interpreted from UTF-8 bytes): " + new String(utf8Bytes, java.nio.charset.StandardCharsets.UTF_8));
+                
                 // It's important NOT to close this writer, as it would close the underlying stdin stream.
                 // We are adapting the stream, not managing its lifecycle here.
                 OutputStreamWriter writer = new OutputStreamWriter(processStdinStream, StandardCharsets.UTF_8);
-                writer.write(message.getPayload() + "\n");
+                writer.write(payload + "\n"); // Use the payload variable
                 writer.flush(); // Crucial for sending data immediately
             } catch (IOException e) {
                 System.err.println("Error writing to process stdin for executionId " + executionId + ": " + e.getMessage());
@@ -133,6 +141,7 @@ public class ExecutionWebSocketHandler extends TextWebSocketHandler {
 
     // Method to send message to a specific session (will be called by the process output readers)
     public void sendMessageToSession(String executionId, String message) {
+        System.out.println("Server WS SEND to Client (" + executionId + "): " + message);
         WebSocketSession session = sessions.get(executionId);
         if (session != null && session.isOpen()) {
             try {

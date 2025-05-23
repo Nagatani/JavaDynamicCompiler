@@ -134,3 +134,29 @@ True interactive support for Java GUI applications in a web browser is a complex
 *   **Focus on Specific UI Components:** Instead of full desktop emulation, future work could focus on capturing and representing a limited set of common Swing components (like dialogs, buttons, text areas) as HTML elements, with interactions relayed back to the server. This would be a partial emulation.
 
 These approaches represent significant undertakings and would require substantial additional research, development, and infrastructure considerations.
+
+## Debugging Character Encoding Issues
+
+To help diagnose and troubleshoot potential character encoding issues, detailed logging has been added to both the server-side and client-side components of the interactive console. These logs provide a trace of the data as it flows from the client to the server, into the executed Java program, back from the program, and finally back to the client.
+
+### Accessing the Logs
+
+*   **Server-Side Logs:**
+    Server-side logs are printed to the console where you launched the Spring Boot Java application. These log messages are typically prefixed with:
+    *   `Server WS RCV:` (when the server's WebSocket handler receives a message from the client)
+    *   `Server WS SEND to Process STDIN (...)` (showing the raw bytes and interpreted string being sent to the executed program's input)
+    *   `Server Process STDOUT READ:` (when the server reads a line from the executed program's standard output)
+    *   `Server Process STDERR READ:` (when the server reads a line from the executed program's standard error)
+    *   `Server WS SEND to Client (...)` (when the server's WebSocket handler sends a message back to the client)
+
+*   **Client-Side Logs:**
+    Client-side logs are displayed in your web browser's Developer Console. To open the Developer Console:
+    *   In most browsers (Chrome, Firefox, Edge), press `F12`.
+    *   Alternatively, you can usually right-click on the page and select "Inspect" or "Inspect Element", then navigate to the "Console" tab.
+    *   These log messages are prefixed with:
+        *   `Client WS SEND:` (when the client sends a message to the server via WebSocket)
+        *   `Client WS RCV:` (when the client receives a message from the server via WebSocket)
+
+### Reporting Issues
+
+If you continue to experience character encoding problems, please perform the test using Japanese characters as described in the "Testing Interactive Console" section. Then, copy and paste the relevant sections from BOTH the server-side console output AND the browser's Developer Console output when reporting the issue. This will provide valuable information for further diagnosis.

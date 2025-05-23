@@ -156,6 +156,7 @@ public class DynamicCompiler {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
+                        System.out.println("Server Process STDOUT READ: " + line);
                         webSocketHandler.sendMessageToSession(executionId, line);
                     }
                 } catch (IOException e) {
@@ -173,6 +174,7 @@ public class DynamicCompiler {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
+                        System.out.println("Server Process STDERR READ: " + line);
                         webSocketHandler.sendMessageToSession(executionId, "ERROR: " + line);
                     }
                 } catch (IOException e) {
