@@ -76,7 +76,8 @@ public class DynamicCompiler {
             tempDir = Files.createTempDirectory("java-compile-");
             JavaFileObject sourceFile = new StringSourceJavaObject(className, sourceCode);
             Iterable<? extends JavaFileObject> compilationUnits = Collections.singletonList(sourceFile);
-            Iterable<String> options = Arrays.asList("-d", tempDir.toString());
+            // Added -encoding UTF-8 to compiler options
+            Iterable<String> options = Arrays.asList("-encoding", "UTF-8", "-d", tempDir.toString());
 
             StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnosticsCollector, null, null);
             JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnosticsCollector, options, null, compilationUnits);
@@ -125,7 +126,13 @@ public class DynamicCompiler {
         String sourceCode = compilationResult.getSourceCode(); // Get source code
 
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder("java", "-cp", tempDir.toString(), className);
+            ProcessBuilder processBuilder = new ProcessBuilder(
+                "java",
+                "-Dfile.encoding=UTF-8", // Added system property for UTF-8
+                "-cp",
+                tempDir.toString(),
+                className
+            );
             Process process = processBuilder.start();
 
             // GUI Check and Timeout Logic

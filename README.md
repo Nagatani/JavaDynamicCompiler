@@ -139,6 +139,12 @@ These approaches represent significant undertakings and would require substantia
 
 To help diagnose and troubleshoot potential character encoding issues, detailed logging has been added to both the server-side and client-side components of the interactive console. These logs provide a trace of the data as it flows from the client to the server, into the executed Java program, back from the program, and finally back to the client.
 
+### Important Note on Source File Encoding
+
+For the application to correctly handle Japanese and other multi-byte characters in your Java source code (e.g., in String literals or comments), please ensure that your `.java` files are **saved with UTF-8 encoding** in your text editor before submitting them through this tool.
+
+While the compiler is instructed to interpret source files as UTF-8, this works most reliably if the file's actual byte encoding is indeed UTF-8.
+
 ### Accessing the Logs
 
 *   **Server-Side Logs:**
