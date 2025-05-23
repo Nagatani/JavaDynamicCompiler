@@ -1,7 +1,8 @@
 package tech.nagatani.dev;
-import static spark.Spark.*;
+// import static spark.Spark.*; // Commented out SparkJava import
 
 public class WebApp {
+    /* // Commented out SparkJava related main method
     public static void main(String[] args) {
         get("/compile", (req, res) -> "Hello World");
 
@@ -13,5 +14,5 @@ public class WebApp {
             return ret;
         }, new JsonTransformer());
     }
-
+    */
 }
