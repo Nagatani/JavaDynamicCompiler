@@ -74,7 +74,8 @@ public class DynamicCompiler {
 
         try {
             tempDir = Files.createTempDirectory("java-compile-");
-            JavaFileObject sourceFile = new StringSourceJavaObject(className, sourceCode);
+
+            JavaFileObject sourceFile = new StringSourceJavaObject(className, sourceCode); // Reverted to original sourceCode
             Iterable<? extends JavaFileObject> compilationUnits = Collections.singletonList(sourceFile);
             // Added -encoding UTF-8 to compiler options
             Iterable<String> options = Arrays.asList("-encoding", "UTF-8", "-d", tempDir.toString());

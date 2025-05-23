@@ -13,7 +13,8 @@ import tech.nagatani.dev.service.InteractiveProcessManager;
 import tech.nagatani.dev.websocket.ExecutionWebSocketHandler;
 
 import java.util.UUID;
-// Removed java.util.Arrays and java.nio.charset.StandardCharsets as they are no longer needed
+import java.util.Arrays; // Re-added for logging
+import java.nio.charset.StandardCharsets; // Re-added for logging
 
 @Controller
 public class CompilerController {
@@ -40,7 +41,13 @@ public class CompilerController {
     @PostMapping("/compile")
     public String compile(@RequestParam("sourceCode") String sourceCode,
                           Model model) {
-        // Logging statements removed
+        System.out.println("CompilerController RCV sourceCode (first 100 chars): " + (sourceCode != null && sourceCode.length() > 100 ? sourceCode.substring(0, 100) + "..." : sourceCode));
+        if (sourceCode != null) {
+            // Ensure StandardCharsets and Arrays are imported
+            // import java.nio.charset.StandardCharsets;
+            // import java.util.Arrays;
+            System.out.println("CompilerController RCV sourceCode (UTF-8 bytes from getBytes()): " + java.util.Arrays.toString(sourceCode.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }
 
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
             model.addAttribute("compilationStatus", "FAILURE");
