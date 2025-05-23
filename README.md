@@ -53,3 +53,73 @@ Executing arbitrary code received from users is a significant security risk. Thi
 -   Only run this application in a trusted environment.
 -   Do not expose it to untrusted users or networks.
 -   Be cautious about the code you compile and run.
+
+## Testing Interactive Console
+
+1.  Run the JavaCompiler web application.
+2.  Navigate to the application in your browser (typically `http://localhost:8080/`).
+3.  Copy the content of `src/test/java/tech/nagatani/dev/testprograms/InteractiveTest.java` into the source code input area.
+    ```java
+    package tech.nagatani.dev.testprograms;
+
+    import java.util.Scanner;
+
+    public class InteractiveTest {
+        public static void main(String[] args) {
+            @SuppressWarnings("resource") // Suppress warning for System.in Scanner
+            Scanner scanner = new Scanner(System.in);
+            System.out.println("SERVER_MSG: Interactive Test Program Started.");
+            System.out.println("SERVER_MSG: Please enter your name:");
+            String name = scanner.nextLine(); // Program will wait here for input
+            System.out.println("SERVER_MSG: Hello, " + name + "!");
+            System.out.println("SERVER_MSG: Program finished.");
+        }
+    }
+    ```
+4.  Click "Compile and Run".
+5.  You should be taken to the interactive console page.
+6.  Expected initial output in the console area:
+    ```
+    SERVER_MSG: Interactive Test Program Started.
+    SERVER_MSG: Please enter your name:
+    ```
+7.  In the input field at the bottom of the page, type your name (e.g., "Jules") and press Enter or click "Send".
+8.  Expected output (after your input and program response):
+    ```
+    > Jules 
+    SERVER_MSG: Hello, Jules!
+    SERVER_MSG: Program finished.
+    Program finished with exit code: 0 
+    ```
+    *(Note: The `> Jules` part is an echo from the client-side JavaScript, and the `Program finished with exit code: 0` is sent by the server upon process termination.)*
+9.  The session should then indicate that the program has finished, and the input field might become disabled.
+
+### Conceptual Outline for Automated Testing (Future Work)
+
+Automated testing for the interactive console feature would typically involve:
+
+1.  **Test Framework:** Use a framework like Selenium for browser automation to submit the code and navigate to the interactive console page.
+2.  **WebSocket Client:** Employ a Java WebSocket client (e.g., from a library like `org.java-websocket` or Spring's WebSocket client) to connect to the `/ws/execute?id=<executionId>` endpoint. The `executionId` would need to be scraped from the interactive console page after code submission or obtained through other means if the test directly triggers backend logic.
+3.  **Coordination:**
+    *   The Selenium test would submit the Java code.
+    *   Once the interactive console page loads, the test would extract the `executionId`.
+    *   The Java WebSocket client would connect using this `executionId`.
+4.  **Interaction & Assertions:**
+    *   The WebSocket client would wait for the initial "SERVER_MSG: Please enter your name:" message.
+    *   It would then send a test name (e.g., "TestUser") over the WebSocket.
+    *   It would then assert that it receives "SERVER_MSG: Hello, TestUser!" and "SERVER_MSG: Program finished." followed by the "Program finished with exit code: 0" message.
+5.  **Challenges:** Timing and synchronization between the browser actions (Selenium) and WebSocket interactions would be critical. Managing process lifecycles and ensuring cleanup after tests would also be important.
+
+## Future Development: Enhanced GUI Support
+
+The current system has a basic timeout mechanism for Java applications that seem to be GUI-based (e.g., using Swing or AWT). If a suspected GUI application doesn't terminate within a short period (currently 10 seconds), it's automatically stopped. This is a rudimentary way to prevent server resources from being held indefinitely by non-interactive GUI programs.
+
+True interactive support for Java GUI applications in a web browser is a complex challenge. Here are some potential avenues for future exploration:
+
+*   **Xvfb (X Virtual FrameBuffer):** On Linux/macOS servers, Xvfb could be used to create a headless display environment. The Java Swing application could run in this virtual display, and its window could be captured as images or a video stream and sent to the web client. User interactions (clicks, keystrokes) from the web client would need to be translated into X11 events.
+*   **`java.awt.Robot` for Screenshots:** The `java.awt.Robot` class can programmatically capture screenshots of AWT/Swing windows. This could provide periodic visual updates to the client, though it wouldn't be fully interactive like a video stream.
+*   **VNC-like Streaming:** More complex solutions could involve integrating or building a VNC-like server that streams the GUI application's display to a VNC client (or custom component) embedded in the web page. This would offer better interactivity.
+*   **WebAssembly (WASM) Port of Java UI Toolkit:** A highly ambitious approach could involve projects aiming to run Java and Swing/AWT (or parts of it) directly in the browser using WebAssembly, potentially with a canvas target. This is a significant research and development area.
+*   **Focus on Specific UI Components:** Instead of full desktop emulation, future work could focus on capturing and representing a limited set of common Swing components (like dialogs, buttons, text areas) as HTML elements, with interactions relayed back to the server. This would be a partial emulation.
+
+These approaches represent significant undertakings and would require substantial additional research, development, and infrastructure considerations.

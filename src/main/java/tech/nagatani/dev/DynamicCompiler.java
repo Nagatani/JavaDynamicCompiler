@@ -13,7 +13,14 @@ import java.util.List;
 import java.util.Comparator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.TimeUnit; // Added for timeout
 
+// New imports for process management and WebSocket integration
+import tech.nagatani.dev.service.InteractiveProcessManager;
+import tech.nagatani.dev.websocket.ExecutionWebSocketHandler;
+import org.springframework.stereotype.Component; // Make this a Spring component
+
+@Component // Added Spring @Component annotation
 public class DynamicCompiler {
     private static final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     private static final Pattern PUBLIC_CLASS_NAME_PATTERN = Pattern.compile("public\\s+(?:final\\s+)?class\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*");
@@ -36,6 +43,7 @@ public class DynamicCompiler {
     public DynamicCompiler() {
         if (compiler == null) {
             System.err.println("Compiler not found. This application cannot function.");
+            // Consider throwing an exception or handling this more gracefully in a Spring context
             throw new IllegalStateException("Java Compiler not available. Please ensure a JDK is installed and configured correctly.");
         }
     }
@@ -51,121 +59,194 @@ public class DynamicCompiler {
         return null;
     }
 
-    public Result compile(String sourceCode) {
-        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+    // Refactored method: compileToJar
+    public CompilationResult compileToJar(String sourceCode) {
+        DiagnosticCollector<JavaFileObject> diagnosticsCollector = new DiagnosticCollector<>();
         List<String> diagnosticMessages = new ArrayList<>();
-        List<String> executeMessages = new ArrayList<>();
-        boolean compileSuccess = false;
         Path tempDir = null;
-
         String className = extractPublicClassName(sourceCode);
 
         if (className == null || className.trim().isEmpty()) {
             diagnosticMessages.add("ERROR: Could not find a public class (e.g., 'public class MyClass {...}') or class name is invalid in the provided source code.");
-            return new Result(false, diagnosticMessages, Collections.emptyList());
+            return new CompilationResult(false, diagnosticMessages, null, null, sourceCode);
         }
 
         try {
-            // Create a temporary directory for compiled class files
             tempDir = Files.createTempDirectory("java-compile-");
-
             JavaFileObject sourceFile = new StringSourceJavaObject(className, sourceCode);
             Iterable<? extends JavaFileObject> compilationUnits = Collections.singletonList(sourceFile);
-            
-            // Options: -d specifies the output directory for class files
             Iterable<String> options = Arrays.asList("-d", tempDir.toString());
 
-            StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
-            JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, options, null, compilationUnits);
-            compileSuccess = task.call();
+            StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnosticsCollector, null, null);
+            JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnosticsCollector, options, null, compilationUnits);
+            boolean success = task.call();
 
-            for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
-                diagnosticMessages.add(String.format("Code: %s%nKind: %s%nSource: %s%nMessage: %s%nLine: %d%nPosition: %d%n",
-                    diagnostic.getCode(),
+            for (Diagnostic<? extends JavaFileObject> diagnostic : diagnosticsCollector.getDiagnostics()) {
+                diagnosticMessages.add(String.format("Kind: %s, Source: %s, Line: %d, Message: %s",
                     diagnostic.getKind(),
                     diagnostic.getSource() != null ? diagnostic.getSource().getName() : "N/A",
-                    diagnostic.getMessage(null), // null for default locale
                     diagnostic.getLineNumber(),
-                    diagnostic.getPosition()));
+                    diagnostic.getMessage(null)));
             }
 
-            if (compileSuccess) {
-                System.out.println(className + ": Compilation successful.");
-                try {
-                    // Execute the compiled class
-                    // Ensure the temp directory is in the classpath
-                    ProcessBuilder processBuilder = new ProcessBuilder("java", "-cp", tempDir.toString(), className);
-                    Process process = processBuilder.start();
-
-                    // Capture stdout
-                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            executeMessages.add(line);
-                        }
-                    }
-                  
-                    // Capture stderr
-                    try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                        String line;
-                        while ((line = errorReader.readLine()) != null) {
-                            executeMessages.add("ERROR: " + line);
-                        }
-                    }
-
-                    int exitCode = process.waitFor();
-                    if (exitCode != 0) {
-                        executeMessages.add("ERROR: Program exited with code " + exitCode);
-                    }
-
-                } catch (IOException | InterruptedException e) {
-                    executeMessages.add("ERROR: Failed to execute compiled class - " + e.getMessage());
-                    // e.printStackTrace(); // Consider logging this server-side
-                }
+            if (success) {
+                System.out.println(className + ": Compilation successful. Output in " + tempDir);
+                // Do not delete tempDir here; it's needed for execution.
+                // It should be cleaned up after execution is completely finished.
+                return new CompilationResult(true, diagnosticMessages, className, tempDir, sourceCode);
             } else {
                 System.out.println(className + ": Compilation failed.");
+                deleteTempDirectory(tempDir); // Clean up if compilation failed
+                return new CompilationResult(false, diagnosticMessages, className, null, sourceCode);
             }
         } catch (IOException e) {
-            // This would be an error in creating temp dir or other file operations
             diagnosticMessages.add("FATAL ERROR: Could not create temporary directory or manage files - " + e.getMessage());
-            // e.printStackTrace(); // Consider logging this server-side
-        } finally {
             if (tempDir != null) {
-                try {
-                    // Recursively delete the temporary directory
-                    Files.walk(tempDir)
-                        .sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(File::delete);
-                } catch (IOException e) {
-                    // Log this error, as cleanup failed
-                    System.err.println("Warning: Failed to delete temporary directory " + tempDir + " - " + e.getMessage());
-                    // e.printStackTrace();
-                }
+                deleteTempDirectory(tempDir); // Attempt cleanup on error
             }
+            return new CompilationResult(false, diagnosticMessages, className, null, sourceCode);
         }
-        return new Result(compileSuccess, diagnosticMessages, executeMessages);
+        // Note: 'finally' block for tempDir deletion is removed from here.
+        // Cleanup is now conditional or handled by InteractiveProcessManager.
     }
 
+    // New method: startProcess
+    public void startProcess(CompilationResult compilationResult, String executionId,
+                             InteractiveProcessManager processManager, ExecutionWebSocketHandler webSocketHandler) {
+        if (!compilationResult.isSuccess() || compilationResult.getCompiledCodePath() == null || compilationResult.getClassName() == null) {
+            System.err.println("Cannot start process due to compilation failure or missing details for executionId: " + executionId);
+            webSocketHandler.sendMessageToSession(executionId, "Error: Compilation failed or details missing. Cannot start process.");
+            return;
+        }
+
+        String className = compilationResult.getClassName();
+        Path tempDir = compilationResult.getCompiledCodePath();
+        String sourceCode = compilationResult.getSourceCode(); // Get source code
+
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder("java", "-cp", tempDir.toString(), className);
+            Process process = processBuilder.start();
+
+            // GUI Check and Timeout Logic
+            boolean isSuspectedGui = sourceCode.contains("import javax.swing.*;") || sourceCode.contains("import java.awt.*;");
+            if (isSuspectedGui) {
+                System.out.println("Suspected GUI application for executionId: " + executionId);
+                boolean exited = false;
+                try {
+                    exited = process.waitFor(10, TimeUnit.SECONDS); // 10-second timeout
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.err.println("Timeout wait interrupted for executionId: " + executionId + " " + e.getMessage());
+                    // Process will be handled by onExit or cleanup
+                }
+
+                if (!exited) {
+                    webSocketHandler.sendMessageToSession(executionId, "INFO: This appears to be a GUI application or a long-running process. It was terminated after a 10-second timeout as full GUI/long-process emulation is not yet supported.");
+                    process.destroyForcibly();
+                    System.out.println("Suspected GUI application/long-running process timed out and was destroyed for executionId: " + executionId);
+                    // I/O threads started below will find streams closed.
+                    // process.onExit() will still fire.
+                }
+            }
+            
+            // Thread to read stdout - only proceed if process is alive or exited normally from timeout check
+            // If process was destroyed, these threads will start, find streams closed, and exit.
+            Thread outputThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        webSocketHandler.sendMessageToSession(executionId, line);
+                    }
+                } catch (IOException e) {
+                    if (!e.getMessage().toLowerCase().contains("stream closed")) {
+                         System.err.println("IOException in output stream reader for " + executionId + ": " + e.getMessage());
+                    }
+                } finally {
+                    System.out.println("Output stream reader ended for " + executionId);
+                }
+            });
+            outputThread.setName("stdout-reader-" + executionId);
+
+            // Thread to read stderr
+            Thread errorThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        webSocketHandler.sendMessageToSession(executionId, "ERROR: " + line);
+                    }
+                } catch (IOException e) {
+                     if (!e.getMessage().toLowerCase().contains("stream closed")) {
+                        System.err.println("IOException in error stream reader for " + executionId + ": " + e.getMessage());
+                     }
+                } finally {
+                    System.out.println("Error stream reader ended for " + executionId);
+                }
+            });
+            errorThread.setName("stderr-reader-" + executionId);
+            
+            processManager.registerProcess(executionId, process, outputThread, errorThread);
+            System.out.println("Process started for executionId: " + executionId + " with class " + className);
+
+            // Wait for the process to complete and then trigger cleanup
+            process.onExit().thenRun(() -> {
+                // Check if process is still alive; it might have been destroyed by timeout
+                // However, onExit should fire regardless of how it terminated.
+                // The message might be slightly off if timed out, but the exit code will be informative.
+                System.out.println("Process " + executionId + " exited with code " + process.exitValue());
+                // Avoid sending "Program finished" if it was killed due to timeout and a message was already sent.
+                // This check is a bit indirect. A more robust way would be to set a flag if timeout occurred.
+                if (!isSuspectedGui || process.exitValue() == 0) { // Simplistic check, may need refinement
+                     webSocketHandler.sendMessageToSession(executionId, "\nProgram finished with exit code: " + process.exitValue());
+                } else if (isSuspectedGui && process.exitValue() != 0 && process.exitValue() != 137 && process.exitValue() != 143) { 
+                    // 137 SIGKILL, 143 SIGTERM. If killed by timeout, we already sent a message.
+                    // If it's GUI and exited with another error, then show it.
+                    webSocketHandler.sendMessageToSession(executionId, "\nProgram (suspected GUI) finished with exit code: " + process.exitValue());
+                }
+                // processManager.cleanupProcess(executionId); // Cleanup is now initiated by WebSocket close
+            });
+
+        } catch (IOException e) {
+            System.err.println("Failed to start process for executionId " + executionId + ": " + e.getMessage());
+            webSocketHandler.sendMessageToSession(executionId, "Error: Failed to start process - " + e.getMessage());
+            deleteTempDirectory(tempDir); // Clean up tempDir if process fails to start
+        }
+    }
+
+    // Helper method to delete temp directory
+    public void deleteTempDirectory(Path directory) {
+        if (directory == null) return;
+        try {
+            Files.walk(directory)
+                .sorted(Comparator.reverseOrder())
+                .map(Path::toFile)
+                .forEach(File::delete);
+            System.out.println("Successfully deleted temporary directory: " + directory);
+        } catch (IOException e) {
+            System.err.println("Warning: Failed to delete temporary directory " + directory + " - " + e.getMessage());
+        }
+    }
+
+
     public static void main(String[] args) {
-        // Example usage (optional, can be removed or adapted)
+        // Main method might need adjustments if used for testing, as compile() signature changed.
+        // For now, it's commented out as it's not essential for the app's core functionality.
         /*
         DynamicCompiler dc = new DynamicCompiler();
-        String source = "public class Test {\n" +
-                        "    public static void main(String[] args) {\n" +
-                        "        System.out.println(\"Hello from dynamically compiled code!\");\n" +
-                        "        System.err.println(\"This is an error message.\");\n" +
-                        "        if(args.length > 0) System.out.println(\"Args: \" + args[0]);\n" +
-                        "    }\n" +
-                        "}";
-        // Result ret = dc.compile(source, "Test"); // Old call
-        Result ret = dc.compile(source); // New call
-
-        System.out.println("Compilation Success: " + ret.compileSuccess());
+        String source = "public class Test { public static void main(String[] args) { System.out.println(\"Hello\"); try { Thread.sleep(2000); } catch (InterruptedException e) {} System.err.println(\"Error\"); } }";
+        CompilationResult result = dc.compileToJar(source);
+        System.out.println("Compilation Success: " + result.isSuccess());
         System.out.println("Compiler Diagnostics:");
-        ret.compileOutput().forEach(System.out::println);
-        System.out.println("\nExecution Output:");
-        ret.output().forEach(System.out::println);
+        result.getDiagnostics().forEach(System.out::println);
+
+        if (result.isSuccess()) {
+            // To test startProcess, you'd need mock/stub for InteractiveProcessManager and ExecutionWebSocketHandler
+            System.out.println("\nSimulating execution (actual process start requires more setup)...");
+            System.out.println("Class Name: " + result.getClassName());
+            System.out.println("Temp Dir: " + result.getCompiledCodePath());
+            // dc.startProcess(result, "test-exec", mockProcessManager, mockWebSocketHandler);
+            // Remember to clean up tempDir after test
+            // dc.deleteTempDirectory(result.getCompiledCodePath());
+        }
         */
     }
 }
